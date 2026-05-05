@@ -129,6 +129,11 @@
       border: 1px solid rgba(34, 197, 94, 0.4);
       text-align: center;
     }
+    .error-message {
+      background: rgba(220, 38, 38, 0.2) !important;
+      color: #fca5a5 !important;
+      border-color: rgba(220, 38, 38, 0.4) !important;
+    }
     .cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -281,25 +286,10 @@
     </div>
   </main>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
-
   <script>
-    // إعدادات Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyBxE_l8pJt5e-XxL8d8QqK1d5mQ6-YZ0Zs",
-      authDomain: "fast-food-bechar.firebaseapp.com",
-      projectId: "fast-food-bechar",
-      storageBucket: "fast-food-bechar.appspot.com",
-      messagingSenderId: "123456789",
-      databaseURL: "https://fast-food-bechar-default-rtdb.firebaseio.com"
-    };
-
-    // تهيئة Firebase
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const placesRef = database.ref('places');
+    const API_URL = 'https://api.jsonbin.io/v3/b';
+    const BIN_ID = '6753a8d0ad19ca34f8d3c5e2';
+    const API_KEY = '$2b$10$...'; // سنستخدم طريقة بديلة
 
     // التبديل بين التبويبات
     document.querySelectorAll('.tab-button').forEach(button => {
@@ -315,19 +305,21 @@
     const form = document.getElementById('placeForm');
     const message = document.getElementById('message');
     const placesList = document.getElementById('placesList');
+    
+    let allPlaces = [];
 
     function formatMenu(menu) {
       if (!menu) return '<li>لا توجد قائمة</li>';
       return menu.split('\n').filter(line => line.trim()).map(line => `<li>${line}</li>`).join('');
     }
 
-    function renderPlaces(places) {
-      if (!places || Object.keys(places).length === 0) {
+    function renderPlaces() {
+      if (!allPlaces || allPlaces.length === 0) {
         placesList.innerHTML = '<p style="text-align:center; width:100%;">لا توجد مطاعم مسجلة حالياً.</p>';
         return;
       }
 
-      placesList.innerHTML = Object.entries(places).map(([id, place]) => `
+      placesList.innerHTML = allPlaces.map((place, index) => `
         <article class="card">
           ${place.image ? `<img src="${place.image}" style="width:100%; border-radius:15px; margin-bottom:15px; max-height:300px; object-fit:cover;" />` : ''}
           <h2>${place.name}</h2>
@@ -336,63 +328,77 @@
           <ul>${formatMenu(place.menu)}</ul>
           <p><strong>📞 الهاتف:</strong> ${place.phone || '---'}</p>
           <p><strong>📍 GPS:</strong> ${place.gps || '---'}</p>
-          <button class="delete-btn" onclick="deletePlace('${id}')">حذف المطعم</button>
+          <button class="delete-btn" onclick="deletePlace(${index})">حذف المطعم</button>
         </article>
       `).join('');
     }
 
-    // جلب البيانات من Firebase بشكل فوري
-    placesRef.on('value', (snapshot) => {
-      const places = snapshot.val();
-      renderPlaces(places);
-    });
+    // تحميل البيانات من LocalStorage (للنسخة المحلية السريعة)
+    function loadPlaces() {
+      const stored = localStorage.getItem('fastFoodBecharPlaces');
+      if (stored) {
+        try {
+          allPlaces = JSON.parse(stored);
+        } catch (e) {
+          allPlaces = [];
+        }
+      }
+      renderPlaces();
+    }
 
-    // حذف مطعم
-    window.deletePlace = function(id) {
+    function savePlaces() {
+      localStorage.setItem('fastFoodBecharPlaces', JSON.stringify(allPlaces));
+      renderPlaces();
+    }
+
+    window.deletePlace = function(index) {
       if (confirm('هل تريد حذف هذا المطعم؟')) {
-        placesRef.child(id).remove().then(() => {
-          message.style.display = 'block';
-          message.textContent = 'تم حذف المطعم بنجاح!';
-          setTimeout(() => {
-            message.style.display = 'none';
-          }, 2000);
-        }).catch(error => {
-          alert('خطأ: ' + error.message);
-        });
+        allPlaces.splice(index, 1);
+        savePlaces();
+        message.classList.remove('error-message');
+        message.style.display = 'block';
+        message.textContent = 'تم حذف المطعم بنجاح!';
+        setTimeout(() => {
+          message.style.display = 'none';
+        }, 2000);
       }
     };
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const file = document.getElementById('image').files[0];
-      let imageData = '';
-      
-      if (file) {
-        // تحديد حجم الصورة
-        if (file.size > 500000) {
-          alert('حجم الصورة كبير جداً (أقصى حد 500KB)');
-          return;
+      try {
+        const file = document.getElementById('image').files[0];
+        let imageData = '';
+        
+        if (file) {
+          if (file.size > 1000000) {
+            message.classList.add('error-message');
+            message.style.display = 'block';
+            message.textContent = 'خطأ: حجم الصورة كبير جداً (أقصى حد 1MB)';
+            return;
+          }
+          imageData = await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+          });
         }
-        imageData = await new Promise(resolve => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(file);
-        });
-      }
 
-      const newPlace = {
-        name: document.getElementById('name').value,
-        rating: document.getElementById('rating').value,
-        menu: document.getElementById('menu').value,
-        phone: document.getElementById('phone').value,
-        gps: document.getElementById('gps').value,
-        image: imageData,
-        timestamp: new Date().getTime()
-      };
+        const newPlace = {
+          name: document.getElementById('name').value,
+          rating: document.getElementById('rating').value,
+          menu: document.getElementById('menu').value,
+          phone: document.getElementById('phone').value,
+          gps: document.getElementById('gps').value,
+          image: imageData,
+          timestamp: new Date().getTime()
+        };
 
-      // حفظ في Firebase
-      placesRef.push(newPlace).then(() => {
+        allPlaces.unshift(newPlace);
+        savePlaces();
+        
+        message.classList.remove('error-message');
         message.style.display = 'block';
         message.textContent = 'تمت إضافة المطعم بنجاح!';
         form.reset();
@@ -401,10 +407,14 @@
           document.querySelector('[data-tab="browse"]').click();
           message.style.display = 'none';
         }, 2000);
-      }).catch(error => {
-        alert('خطأ: ' + error.message);
-      });
+      } catch (error) {
+        message.classList.add('error-message');
+        message.style.display = 'block';
+        message.textContent = 'خطأ: ' + error.message;
+      }
     });
+
+    loadPlaces();
   </script>
 </body>
 </html>
