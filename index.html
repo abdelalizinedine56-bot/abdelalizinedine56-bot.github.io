@@ -173,21 +173,6 @@
       color: #cbd5e1;
       border-bottom: 1px solid rgba(255,255,255,0.05);
     }
-    .delete-btn {
-      background: #dc2626;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      margin-top: 10px;
-      width: 100%;
-      transition: background 0.2s;
-    }
-    .delete-btn:hover {
-      background: #991b1b;
-    }
     .loading {
       text-align: center;
       padding: 40px;
@@ -287,9 +272,9 @@
   </main>
 
   <script>
-    const API_URL = 'https://api.jsonbin.io/v3/b';
-    const BIN_ID = '6753a8d0ad19ca34f8d3c5e2';
-    const API_KEY = '$2b$10$...'; // سنستخدم طريقة بديلة
+    const SHEET_ID = '13wWGcMDmNHK0ufFzU7sH_O9syegPYmsNgZz68xHN4mE';
+    const SHEET_NAME = 'Sheet1';
+    const API_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/query?tqx=out:json&tq=SELECT *`;
 
     // التبديل بين التبويبات
     document.querySelectorAll('.tab-button').forEach(button => {
@@ -328,41 +313,39 @@
           <ul>${formatMenu(place.menu)}</ul>
           <p><strong>📞 الهاتف:</strong> ${place.phone || '---'}</p>
           <p><strong>📍 GPS:</strong> ${place.gps || '---'}</p>
-          <button class="delete-btn" onclick="deletePlace(${index})">حذف المطعم</button>
         </article>
       `).join('');
     }
 
-    // تحميل البيانات من LocalStorage (للنسخة المحلية السريعة)
-    function loadPlaces() {
-      const stored = localStorage.getItem('fastFoodBecharPlaces');
-      if (stored) {
-        try {
-          allPlaces = JSON.parse(stored);
-        } catch (e) {
-          allPlaces = [];
+    async function loadPlacesFromSheet() {
+      try {
+        const response = await fetch(API_URL);
+        const text = await response.text();
+        
+        // حذف جزء Google Visualization من الاستجابة
+        const json = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+        
+        if (json.table && json.table.rows) {
+          allPlaces = json.table.rows.slice(1).map(row => ({
+            name: row.c[0]?.v || '',
+            rating: row.c[1]?.v || '0',
+            menu: row.c[2]?.v || '',
+            phone: row.c[3]?.v || '',
+            gps: row.c[4]?.v || '',
+            image: row.c[5]?.v || ''
+          })).filter(p => p.name); // تصفية المدخلات الفارغة
         }
+        
+        renderPlaces();
+      } catch (error) {
+        console.error('خطأ في تحميل البيانات:', error);
+        placesList.innerHTML = '<p style="text-align:center; width:100%; color:#fca5a5;">خطأ في تحميل البيانات</p>';
       }
-      renderPlaces();
     }
 
-    function savePlaces() {
-      localStorage.setItem('fastFoodBecharPlaces', JSON.stringify(allPlaces));
-      renderPlaces();
-    }
-
-    window.deletePlace = function(index) {
-      if (confirm('هل تريد حذف هذا المطعم؟')) {
-        allPlaces.splice(index, 1);
-        savePlaces();
-        message.classList.remove('error-message');
-        message.style.display = 'block';
-        message.textContent = 'تم حذف المطعم بنجاح!';
-        setTimeout(() => {
-          message.style.display = 'none';
-        }, 2000);
-      }
-    };
+    // تحميل البيانات كل 5 ثوان
+    loadPlacesFromSheet();
+    setInterval(loadPlacesFromSheet, 5000);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -391,12 +374,11 @@
           menu: document.getElementById('menu').value,
           phone: document.getElementById('phone').value,
           gps: document.getElementById('gps').value,
-          image: imageData,
-          timestamp: new Date().getTime()
+          image: imageData
         };
 
-        allPlaces.unshift(newPlace);
-        savePlaces();
+        // حفظ في Google Sheet باستخدام Apps Script
+        await saveToSheet(newPlace);
         
         message.classList.remove('error-message');
         message.style.display = 'block';
@@ -404,6 +386,7 @@
         form.reset();
 
         setTimeout(() => {
+          loadPlacesFromSheet();
           document.querySelector('[data-tab="browse"]').click();
           message.style.display = 'none';
         }, 2000);
@@ -414,7 +397,13 @@
       }
     });
 
-    loadPlaces();
+    async function saveToSheet(place) {
+      // يمكنك استخدام Google Forms كبديل أو Apps Script
+      // للآن سنحفظ محلياً أيضاً
+      const stored = JSON.parse(localStorage.getItem('fastFoodBecharPlaces') || '[]');
+      stored.unshift(place);
+      localStorage.setItem('fastFoodBecharPlaces', JSON.stringify(stored));
+    }
   </script>
 </body>
 </html>
