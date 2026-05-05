@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fast Food Bechar</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      /* تم إضافة لون غامق احتياطي #0f172a قبل الصورة */
+      background: #0f172a url('bg.jpg') center/cover fixed;
+      color: #f8fafc;
+    }
+    header {
+      background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 50%, #7f1d1d 100%);
+      color: #f8fafc;
+      padding: 28px 20px;
+      text-align: center;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      background: linear-gradient(135deg, #fbbf24, #f87171);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      margin: 8px 0 0;
+      font-size: 18px;
+    }
+    main {
+      max-width: 980px;
+      margin: 24px auto 40px;
+      padding: 0 16px;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid rgba(248, 250, 252, 0.1);
+    }
+    .tab-button {
+      padding: 14px 24px;
+      background: rgba(15, 23, 42, 0.7);
+      border: none;
+      color: #cbd5e1;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 12px 12px 0 0;
+      transition: all 0.2s;
+    }
+    .tab-button.active {
+      background: linear-gradient(135deg, #1e40af, #7f1d1d);
+      color: #fbbf24;
+      box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.3);
+    }
+    .tab-button:hover {
+      color: #fbbf24;
+      background: rgba(30, 64, 175, 0.8);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    form {
+      background: rgba(15, 23, 42, 0.95);
+      padding: 24px;
+      border-radius: 22px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
+      margin-bottom: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-weight: 700;
+      color: #e2e8f0;
+      text-align: right;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      box-sizing: border-box;
+      transition: all 0.2s;
+      text-align: right;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #fbbf24;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    button {
+      background: linear-gradient(135deg, #7f1d1d, #991b1b);
+      color: white;
+      border: none;
+      padding: 14px 22px;
+      font-size: 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 18px;
+      transition: transform 0.16s ease, background 0.16s ease;
+      font-weight: 600;
+      width: 100%;
+    }
+    button:hover {
+      background: linear-gradient(135deg, #991b1b, #b91c1c);
+      transform: translateY(-2px);
+    }
+    .message {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(34, 197, 94, 0.2);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      text-align: center;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: rgba(30, 41, 59, 0.9);
+      border-radius: 24px;
+      box-shadow: 0 20px 55px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      padding: 24px;
+      border: 1px solid rgba(248, 250, 252, 0.1);
+      text-align: right;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      color: #fbbf24;
+    }
+    .card p {
+      margin: 8px 0;
+      line-height: 1.7;
+      color: #cbd5e1;
+    }
+    .small {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0;
+    }
+    ul li {
+      padding: 4px 0;
+      color: #cbd5e1;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>FAST FOOD</h1>
+    <p>Bechar - بشار</p>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="tab-button active" data-tab="browse">عرض المطاعم</button>
+      <button class="tab-button" data-tab="add">إضافة مطعم</button>
+    </div>
+
+    <div id="browse" class="tab-content active">
+      <section>
+        <h2 style="text-align: right;">قائمة المطاعم</h2>
+        <div class="cards" id="placesList"></div>
+      </section>
+    </div>
+
+    <div id="add" class="tab-content">
+      <form id="placeForm">
+        <label for="name">اسم المطعم</label>
+        <input type="text" id="name" required placeholder="مثال: فاست فود بشار" />
+
+        <label for="rating">التقييم</label>
+        <select id="rating" required>
+          <option value="">اختر التقييم</option>
+          <option value="5">5 نجوم</option>
+          <option value="4">4 نجوم</option>
+          <option value="3">3 نجوم</option>
+          <option value="2">2 نجوم</option>
+          <option value="1">1 نجمة</option>
+        </select>
+
+        <label for="menu">قائمة الطعام والأسعار</label>
+        <textarea id="menu" rows="4" placeholder="مثال:
+تاكوس - 200 دج
+برغر - 1200 دج"></textarea>
+
+        <label for="image">صورة المطعم</label>
+        <input type="file" id="image" accept="image/*" />
+
+        <label for="phone">رقم الهاتف</label>
+        <input type="tel" id="phone" placeholder="مثال: 0555 123 456" />
+
+        <label for="gps">موقع GPS</label>
+        <input type="text" id="gps" placeholder="مثال: 33.6678, 2.9423" />
+
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="ownerConfirm" required style="width: auto;" /> أنا صاحب هذا المطعم أو ممثل عنه
+        </label>
+
+        <button type="submit">إضافة المطعم</button>
+      </form>
+
+      <div id="message" class="message" style="display:none;"></div>
+    </div>
+  </main>
+
+  <script>
+    // التبديل بين التبويبات
+    document.querySelectorAll('.tab-button').forEach(button => {
+      button.addEventListener('click', () => {
+        const tabId = button.dataset.tab;
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+      });
+    });
+
+    const form = document.getElementById('placeForm');
+    const message = document.getElementById('message');
+    const placesList = document.getElementById('placesList');
+    
+    // جلب البيانات المخزنة
+    let storedPlaces = JSON.parse(localStorage.getItem('fastFoodBecharPlaces') || '[]');
+
+    function formatMenu(menu) {
+      if (!menu) return '<li>لا توجد قائمة</li>';
+      return menu.split('\n').filter(line => line.trim()).map(line => `<li>${line}</li>`).join('');
+    }
+
+    function renderPlaces() {
+      placesList.innerHTML = storedPlaces.map(place => `
+        <article class="card">
+          ${place.image ? `<img src="${place.image}" style="width:100%; border-radius:15px; margin-bottom:15px;" />` : ''}
+          <h2>${place.name}</h2>
+          <p>⭐ التقييم: ${place.rating} / 5</p>
+          <p><strong>قائمة الطعام:</strong></p>
+          <ul>${formatMenu(place.menu)}</ul>
+          <p><strong>📞 الهاتف:</strong> ${place.phone || '---'}</p>
+          <p><strong>📍 GPS:</strong> ${place.gps || '---'}</p>
+        </article>
+      `).join('');
+
+      if (storedPlaces.length === 0) {
+        placesList.innerHTML = '<p style="text-align:center; width:100%;">لا توجد مطاعم مسجلة حالياً.</p>';
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const file = document.getElementById('image').files[0];
+      let imageData = '';
+      
+      if (file) {
+        imageData = await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+      }
+
+      const newPlace = {
+        name: document.getElementById('name').value,
+        rating: document.getElementById('rating').value,
+        menu: document.getElementById('menu').value,
+        phone: document.getElementById('phone').value,
+        gps: document.getElementById('gps').value,
+        image: imageData
+      };
+
+      storedPlaces.unshift(newPlace);
+      localStorage.setItem('fastFoodBecharPlaces', JSON.stringify(storedPlaces));
+      
+      message.style.display = 'block';
+      message.textContent = 'تمت إضافة المطعم بنجاح!';
+      form.reset();
+      renderPlaces();
+
+      setTimeout(() => {
+        document.querySelector('[data-tab="browse"]').click();
+        message.style.display = 'none';
+      }, 2000);
+    });
+
+    renderPlaces();
+  </script>
+</body>
+</html>
