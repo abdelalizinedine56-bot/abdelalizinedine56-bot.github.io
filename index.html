@@ -208,10 +208,9 @@
   </style>
 </head>
 <body>
-  <!-- زر الواتساب -->
   <a href="https://wa.me/213652394088?text=مرحبا%20بفاست%20فود%20بشار" class="whatsapp-btn" title="تواصل معنا عبر واتساب">
     <svg viewBox="0 0 24 24">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761[...]
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761"/>
     </svg>
   </a>
 
@@ -271,13 +270,11 @@
     </div>
   </main>
 
-  <!-- Firebase SDK -->
   <script type="module">
-    // Import the functions you need from the SDKs you need
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-analytics.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Your web app's Firebase configuration
+    // إعدادات Firebase الخاصة بمشروعك
     const firebaseConfig = {
       apiKey: "AIzaSyBqKHMC6jltH56-vfcsTqZHh0KOVZaWuZY",
       authDomain: "fast-food-bechar.firebaseapp.com",
@@ -288,18 +285,11 @@
       measurementId: "G-03Y3TC5YLN"
     };
 
-    // Initialize Firebase
+    // تفعيل Firebase وقاعدة البيانات
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    console.log("Firebase initialized successfully!");
-  </script>
+    const db = getFirestore(app);
 
-  <script>
-    const SHEET_ID = '13wWGcMDmNHK0ufFzU7sH_O9syegPYmsNgZz68xHN4mE';
-    const SHEET_NAME = 'Sheet1';
-    const API_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/query?tqx=out:json&tq=SELECT *`;
-
-    // التبديل بين التبويبات
+    // دالة التبديل بين التبويبات
     document.querySelectorAll('.tab-button').forEach(button => {
       button.addEventListener('click', () => {
         const tabId = button.dataset.tab;
@@ -313,63 +303,52 @@
     const form = document.getElementById('placeForm');
     const message = document.getElementById('message');
     const placesList = document.getElementById('placesList');
-    
-    let allPlaces = [];
 
+    // دالة لتنسيق نص قائمة المأكولات والمشروبات
     function formatMenu(menu) {
-      if (!menu) return '<li>لا توجد قائمة</li>';
+      if (!menu) return '<li>لا توجد قائمة مضافة</li>';
       return menu.split('\n').filter(line => line.trim()).map(line => `<li>${line}</li>`).join('');
     }
 
-    function renderPlaces() {
-      if (!allPlaces || allPlaces.length === 0) {
-        placesList.innerHTML = '<p style="text-align:center; width:100%;">لا توجد مطاعم مسجلة حالياً.</p>';
-        return;
-      }
-
-      placesList.innerHTML = allPlaces.map((place, index) => `
-        <article class="card">
-          ${place.image ? `<img src="${place.image}" style="width:100%; border-radius:15px; margin-bottom:15px; max-height:300px; object-fit:cover;" />` : ''}
-          <h2>${place.name}</h2>
-          <p>⭐ التقييم: ${place.rating} / 5</p>
-          <p><strong>قائمة الطعام:</strong></p>
-          <ul>${formatMenu(place.menu)}</ul>
-          <p><strong>📞 الهاتف:</strong> ${place.phone || '---'}</p>
-          <p><strong>📍 GPS:</strong> ${place.gps || '---'}</p>
-        </article>
-      `).join('');
-    }
-
-    async function loadPlacesFromSheet() {
+    // دالة جلب البيانات الحية وعرضها من Firebase
+    async function loadPlaces() {
       try {
-        const response = await fetch(API_URL);
-        const text = await response.text();
+        // جلب البيانات مرتبة بحسب تاريخ الإضافة الأحدث أولاً
+        const q = query(collection(db, "restaurants"), orderBy("createdAt", "desc"));
+        const querySnapshot = await getDocs(q);
         
-        // حذف جزء Google Visualization من الاستجابة
-        const json = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
-        
-        if (json.table && json.table.rows) {
-          allPlaces = json.table.rows.slice(1).map(row => ({
-            name: row.c[0]?.v || '',
-            rating: row.c[1]?.v || '0',
-            menu: row.c[2]?.v || '',
-            phone: row.c[3]?.v || '',
-            gps: row.c[4]?.v || '',
-            image: row.c[5]?.v || ''
-          })).filter(p => p.name); // تصفية المدخلات الفارغة
+        if (querySnapshot.empty) {
+          placesList.innerHTML = '<p style="text-align:center; width:100%;">لا توجد مطاعم مسجلة حالياً.</p>';
+          return;
         }
+
+        let htmlContent = '';
+        querySnapshot.forEach((doc) => {
+          const place = doc.data();
+          htmlContent += `
+            <article class="card">
+              ${place.image ? `<img src="${place.image}" style="width:100%; border-radius:15px; margin-bottom:15px; max-height:300px; object-fit:cover;" />` : ''}
+              <h2>${place.restaurantName}</h2>
+              <p>⭐ التقييم: ${place.rating} / 5</p>
+              <p><strong>قائمة الطعام:</strong></p>
+              <ul>${formatMenu(place.menuPrices)}</ul>
+              <p><strong>📞 الهاتف:</strong> ${place.phoneNumber || '---'}</p>
+              <p><strong>📍 GPS:</strong> ${place.gpsLocation || '---'}</p>
+            </article>
+          `;
+        });
         
-        renderPlaces();
+        placesList.innerHTML = htmlContent;
       } catch (error) {
-        console.error('خطأ في تحميل البيانات:', error);
-        placesList.innerHTML = '<p style="text-align:center; width:100%; color:#fca5a5;">خطأ في تحميل البيانات</p>';
+        console.error('خطأ في تحميل البيانات من Firebase:', error);
+        placesList.innerHTML = '<p style="text-align:center; width:100%; color:#fca5a5;">خطأ في تحميل قائمة المطاعم</p>';
       }
     }
 
-    // تحميل البيانات كل 5 ثوان
-    loadPlacesFromSheet();
-    setInterval(loadPlacesFromSheet, 5000);
+    // تحميل المطاعم فور فتح الموقع
+    loadPlaces();
 
+    // الاستماع لحدث الضغط على زر إضافة مطعم جديد
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -377,8 +356,9 @@
         const file = document.getElementById('image').files[0];
         let imageData = '';
         
+        // تحويل الصورة إلى نص مضغوط (Base64) لحفظها في قاعدة البيانات مباشرة
         if (file) {
-          if (file.size > 1000000) {
+          if (file.size > 1000000) { // حد أقصى 1 ميجابايت للملف
             message.classList.add('error-message');
             message.style.display = 'block';
             message.textContent = 'خطأ: حجم الصورة كبير جداً (أقصى حد 1MB)';
@@ -391,42 +371,35 @@
           });
         }
 
-        const newPlace = {
-          name: document.getElementById('name').value,
+        // إرسال البيانات فوراً إلى السيرفر السحابي في Firebase
+        await addDoc(collection(db, "restaurants"), {
+          restaurantName: document.getElementById('name').value,
           rating: document.getElementById('rating').value,
-          menu: document.getElementById('menu').value,
-          phone: document.getElementById('phone').value,
-          gps: document.getElementById('gps').value,
-          image: imageData
-        };
-
-        // حفظ في Google Sheet باستخدام Apps Script
-        await saveToSheet(newPlace);
+          menuPrices: document.getElementById('menu').value,
+          phoneNumber: document.getElementById('phone').value,
+          gpsLocation: document.getElementById('gps').value,
+          image: imageData,
+          createdAt: new Date()
+        });
         
         message.classList.remove('error-message');
         message.style.display = 'block';
-        message.textContent = 'تمت إضافة المطعم بنجاح!';
+        message.textContent = 'تمت إضافة المطعم بنجاح إلى دليل بشار! 🎉';
         form.reset();
 
+        // الانتظار لمدة ثانيتين ثم التوجيه لقسم العرض وتحديث القائمة
         setTimeout(() => {
-          loadPlacesFromSheet();
+          loadPlaces();
           document.querySelector('[data-tab="browse"]').click();
           message.style.display = 'none';
         }, 2000);
+
       } catch (error) {
         message.classList.add('error-message');
         message.style.display = 'block';
-        message.textContent = 'خطأ: ' + error.message;
+        message.textContent = 'حدث خطأ أثناء الحفظ: ' + error.message;
       }
     });
-
-    async function saveToSheet(place) {
-      // يمكنك استخدام Google Forms كبديل أو Apps Script
-      // للآن سنحفظ محلياً أيضاً
-      const stored = JSON.parse(localStorage.getItem('fastFoodBecharPlaces') || '[]');
-      stored.unshift(place);
-      localStorage.setItem('fastFoodBecharPlaces', JSON.stringify(stored));
-    }
   </script>
 </body>
 </html>
