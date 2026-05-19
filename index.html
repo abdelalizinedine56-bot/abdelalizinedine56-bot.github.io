@@ -159,10 +159,6 @@
       line-height: 1.7;
       color: #cbd5e1;
     }
-    .small {
-      color: #94a3b8;
-      font-size: 14px;
-    }
     ul {
       list-style: none;
       padding: 0;
@@ -178,6 +174,22 @@
       padding: 40px;
       color: #cbd5e1;
       font-size: 18px;
+    }
+    .delete-btn {
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      font-size: 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 15px;
+      width: auto;
+      float: left;
+      transition: background 0.2s;
+    }
+    .delete-btn:hover {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
     }
     .whatsapp-btn {
       position: fixed;
@@ -272,7 +284,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBqKHMC6jltH56-vfcsTqZHh0KOVZaWuZY",
@@ -325,8 +337,10 @@
         }
 
         let htmlContent = '';
-        querySnapshot.forEach((doc) => {
-          const place = doc.data();
+        querySnapshot.forEach((documentSnapshot) => {
+          const place = documentSnapshot.data();
+          const docId = documentSnapshot.id; // الحصول على معرف المستند الفريد للحذف
+          
           const resName = place.restaurantName || place.name || "مطعم غير مسمى";
           const resPhone = place.phoneNumber || place.phone || "---";
           const resGps = place.gpsLocation || place.gps || "---";
@@ -341,11 +355,36 @@
               <ul>${formatMenu(resMenu)}</ul>
               <p><strong>📞 الهاتف:</strong> ${resPhone}</p>
               <p><strong>📍 GPS:</strong> ${resGps}</p>
+              <button class="delete-btn" data-id="${docId}">حذف المطعم 🗑️</button>
+              <div style="clear:both;"></div>
             </article>
           `;
         });
         
         placesList.innerHTML = htmlContent;
+
+        // ربط أحداث الحذف بالأزرار المضافة حديثاً
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const idToDel = e.target.dataset.id;
+            const password = prompt("يرجى إدخال كلمة المرور لحذف هذا المطعم:");
+            
+            if (password === "8584786839") {
+              if (confirm("هل أنت متأكد تماماً من رغبتك في حذف هذا المطعم؟")) {
+                try {
+                  await deleteDoc(doc(db, "restaurants", idToDel));
+                  alert("تم حذف المطعم بنجاح! 🗑️");
+                  loadPlaces(); // إعادة تحميل القائمة بعد الحذف
+                } catch (err) {
+                  alert("حدث خطأ أثناء الحذف: " + err.message);
+                }
+              }
+            } else if (password !== null) {
+              alert("كلمة المرور غير صحيحة! لا تملك صلاحية الحذف.");
+            }
+          });
+        });
+
       } catch (error) {
         console.error('خطأ عام أثناء جلب البيانات:', error);
         placesList.innerHTML = '<p style="text-align:center; width:100%; color:#fca5a5;">حدث خطأ أثناء الاتصال بقاعدة البيانات.</p>';
@@ -354,7 +393,7 @@
 
     loadPlaces();
 
-    // دالة سحرية لضغط الصور وتصغير حجمها برمجياً قبل الرفع
+    // دالة ضغط الصور تلقائياً
     function compressImage(file, maxWidth = 800, maxHeight = 600, quality = 0.7) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -367,7 +406,6 @@
             let width = img.width;
             let height = img.height;
 
-            // الحفاظ على أبعاد الصورة ونسبها عند التصغير
             if (width > height) {
               if (width > maxWidth) {
                 height = Math.round((height * maxWidth) / width);
@@ -385,7 +423,6 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
             
-            // تصدير الصورة بصيغة JPEG مضغوطة وخفيفة جداً
             const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
             resolve(compressedDataUrl);
           };
@@ -407,8 +444,6 @@
           message.style.display = 'block';
           message.className = 'message';
           message.textContent = 'جاري معالجة وضغط الصورة...';
-          
-          // تشغيل دالة الضغط التلقائي للصورة مهما كان حجمها الأصلي كبير
           imageData = await compressImage(file, 800, 600, 0.7);
         }
 
