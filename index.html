@@ -274,7 +274,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // إعدادات Firebase الخاصة بمشروعك
+    // إعدادات Firebase الخاصة بك
     const firebaseConfig = {
       apiKey: "AIzaSyBqKHMC6jltH56-vfcsTqZHh0KOVZaWuZY",
       authDomain: "fast-food-bechar.firebaseapp.com",
@@ -285,11 +285,10 @@
       measurementId: "G-03Y3TC5YLN"
     };
 
-    // تفعيل Firebase وقاعدة البيانات
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // دالة التبديل بين التبويبات
+    // تبديل التبويبات
     document.querySelectorAll('.tab-button').forEach(button => {
       button.addEventListener('click', () => {
         const tabId = button.dataset.tab;
@@ -304,51 +303,65 @@
     const message = document.getElementById('message');
     const placesList = document.getElementById('placesList');
 
-    // دالة لتنسيق نص قائمة المأكولات والمشروبات
     function formatMenu(menu) {
-      if (!menu) return '<li>لا توجد قائمة مضافة</li>';
+      if (!menu) return '<li>لا توجد قائمة حالياً</li>';
       return menu.split('\n').filter(line => line.trim()).map(line => `<li>${line}</li>`).join('');
     }
 
-    // دالة جلب البيانات الحية وعرضها من Firebase
+    // دالة جلب وعرض البيانات بطريقة آمنة لتجنب مشاكل الفهرسة
     async function loadPlaces() {
       try {
-        // جلب البيانات مرتبة بحسب تاريخ الإضافة الأحدث أولاً
-        const q = query(collection(db, "restaurants"), orderBy("createdAt", "desc"));
-        const querySnapshot = await getDocs(q);
+        let querySnapshot;
+        
+        try {
+          // محاولة الجلب بالترتيب أولاً (تحتاج تفعيل الـ Index في لوحة التحكم لاحقاً)
+          const q = query(collection(db, "restaurants"), orderBy("createdAt", "desc"));
+          querySnapshot = await getDocs(q);
+        } catch (idxError) {
+          console.warn("الفهرس لم يفعل بعد، سيتم جلب البيانات بدون ترتيب مؤقتاً.");
+          // حل بديل فوري: جلب البيانات العادية بدون ترتيب لتفادي توقف الموقع العام
+          querySnapshot = await getDocs(collection(db, "restaurants"));
+        }
         
         if (querySnapshot.empty) {
-          placesList.innerHTML = '<p style="text-align:center; width:100%;">لا توجد مطاعم مسجلة حالياً.</p>';
+          placesList.innerHTML = '<p style="text-align:center; width:100%;">لا توجد مطاعم مسجلة حالياً في ولاية بشار.</p>';
           return;
         }
 
         let htmlContent = '';
         querySnapshot.forEach((doc) => {
           const place = doc.data();
+          
+          // حماية إضافية للتحقق من وجود الحقول لتفادي قيم الـ undefined
+          const resName = place.restaurantName || place.name || "مطعم غير مسمى";
+          const resPhone = place.phoneNumber || place.phone || "---";
+          const resGps = place.gpsLocation || place.gps || "---";
+          const resMenu = place.menuPrices || place.menu || "";
+
           htmlContent += `
             <article class="card">
               ${place.image ? `<img src="${place.image}" style="width:100%; border-radius:15px; margin-bottom:15px; max-height:300px; object-fit:cover;" />` : ''}
-              <h2>${place.restaurantName}</h2>
-              <p>⭐ التقييم: ${place.rating} / 5</p>
+              <h2>${resName}</h2>
+              <p>⭐ التقييم: ${place.rating || '5'} / 5</p>
               <p><strong>قائمة الطعام:</strong></p>
-              <ul>${formatMenu(place.menuPrices)}</ul>
-              <p><strong>📞 الهاتف:</strong> ${place.phoneNumber || '---'}</p>
-              <p><strong>📍 GPS:</strong> ${place.gpsLocation || '---'}</p>
+              <ul>${formatMenu(resMenu)}</ul>
+              <p><strong>📞 الهاتف:</strong> ${resPhone}</p>
+              <p><strong>📍 GPS:</strong> ${resGps}</p>
             </article>
           `;
         });
         
         placesList.innerHTML = htmlContent;
       } catch (error) {
-        console.error('خطأ في تحميل البيانات من Firebase:', error);
-        placesList.innerHTML = '<p style="text-align:center; width:100%; color:#fca5a5;">خطأ في تحميل قائمة المطاعم</p>';
+        console.error('خطأ عام أثناء جلب البيانات:', error);
+        placesList.innerHTML = '<p style="text-align:center; width:100%; color:#fca5a5;">حدث خطأ أثناء الاتصال بقاعدة البيانات.</p>';
       }
     }
 
-    // تحميل المطاعم فور فتح الموقع
+    // استدعاء التحميل الفوري
     loadPlaces();
 
-    // الاستماع لحدث الضغط على زر إضافة مطعم جديد
+    // إرسال البيانات من الاستمارة
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -356,9 +369,8 @@
         const file = document.getElementById('image').files[0];
         let imageData = '';
         
-        // تحويل الصورة إلى نص مضغوط (Base64) لحفظها في قاعدة البيانات مباشرة
         if (file) {
-          if (file.size > 1000000) { // حد أقصى 1 ميجابايت للملف
+          if (file.size > 1000000) {
             message.classList.add('error-message');
             message.style.display = 'block';
             message.textContent = 'خطأ: حجم الصورة كبير جداً (أقصى حد 1MB)';
@@ -371,7 +383,6 @@
           });
         }
 
-        // إرسال البيانات فوراً إلى السيرفر السحابي في Firebase
         await addDoc(collection(db, "restaurants"), {
           restaurantName: document.getElementById('name').value,
           rating: document.getElementById('rating').value,
@@ -384,10 +395,9 @@
         
         message.classList.remove('error-message');
         message.style.display = 'block';
-        message.textContent = 'تمت إضافة المطعم بنجاح إلى دليل بشار! 🎉';
+        message.textContent = 'تمت إضافة المطعم بنجاح! 🎉';
         form.reset();
 
-        // الانتظار لمدة ثانيتين ثم التوجيه لقسم العرض وتحديث القائمة
         setTimeout(() => {
           loadPlaces();
           document.querySelector('[data-tab="browse"]').click();
