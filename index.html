@@ -44,6 +44,36 @@
       position: relative;
       z-index: 20;
     }
+    
+    /* تصميم محسّن وثابت لخانة البحث أعلى التبويبات */
+    .search-container {
+      margin: 20px 0;
+      position: relative;
+      z-index: 110;
+    }
+    .search-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 16px;
+      border: 2px solid rgba(251, 191, 36, 0.4);
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.95);
+      color: #fff;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+      text-align: right;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: #fbbf24;
+      box-shadow: 0 8px 30px rgba(251, 191, 36, 0.3);
+      background: rgba(30, 41, 59, 0.98);
+    }
+    .search-input::placeholder {
+      color: #94a3b8;
+    }
+
     .tabs {
       display: flex;
       gap: 8px;
@@ -80,34 +110,6 @@
     }
     .tab-content.active {
       display: block;
-    }
-    
-    /* تصميم خانة البحث الجديدة */
-    .search-container {
-      margin-bottom: 24px;
-      position: relative;
-    }
-    .search-input {
-      width: 100%;
-      padding: 16px 20px;
-      font-size: 16px;
-      border: 2px solid rgba(251, 191, 36, 0.3);
-      border-radius: 16px;
-      background: rgba(15, 23, 42, 0.9);
-      color: #fff;
-      box-sizing: border-box;
-      transition: all 0.3s ease;
-      text-align: right;
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-    }
-    .search-input:focus {
-      outline: none;
-      border-color: #fbbf24;
-      box-shadow: 0 8px 30px rgba(251, 191, 36, 0.2);
-      background: rgba(30, 41, 59, 0.95);
-    }
-    .search-input::placeholder {
-      color: #94a3b8;
     }
 
     form {
@@ -186,7 +188,6 @@
       border: 1px solid rgba(248, 250, 252, 0.1);
       text-align: right;
       position: relative;
-      transition: transform 0.3s ease, opacity 0.3s ease;
     }
     .card h2 {
       margin: 0 0 12px;
@@ -273,16 +274,16 @@
   </header>
 
   <main>
+    <div class="search-container" id="searchBox">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 ابحث عن مطعم أو أكلة (برغر، تاكوس، بيتزا...)..." />
+    </div>
+
     <div class="tabs">
       <button class="tab-button active" data-tab="browse">عرض المطاعم</button>
       <button class="tab-button" data-tab="add">إضافة مطعم</button>
     </div>
 
     <div id="browse" class="tab-content active">
-      <div class="search-container">
-        <input type="text" id="searchInput" class="search-input" placeholder="🔍 ابحث عن مطعم أو وجبة معينة (برغر، تاكوس...)..." />
-      </div>
-
       <section>
         <h2 style="text-align: right; margin-bottom: 20px;">قائمة المطاعم</h2>
         <div class="cards" id="placesList">
@@ -350,7 +351,7 @@
     const _p2 = "86839";
     const checkAuth = (input) => input === (_p1 + _p2);
 
-    // تبديل التبويبات
+    // تبديل التبويبات وإخفاء/إظهار خانة البحث ذكياً
     document.querySelectorAll('.tab-button').forEach(button => {
       button.addEventListener('click', (e) => {
         e.preventDefault();
@@ -364,6 +365,11 @@
             alert("كلمة المرور خاطئة! لا تملك صلاحية الدخول لصفحة الإضافة.");
             return; 
           }
+          // إخفاء خانة البحث في صفحة الإضافة لكي لا تشوه المنظر
+          document.getElementById('searchBox').style.display = 'none';
+        } else {
+          // إظهار خانة البحث عند العودة لصفحة العرض
+          document.getElementById('searchBox').style.display = 'block';
         }
 
         document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
@@ -410,7 +416,6 @@
           const resGps = place.gpsLocation || place.gps || place["gps"] || "---";
           const resMenu = place.menuPrices || place.menu || "";
 
-          // إضافة كود الفلترة عبر كلاسات مخصصة وبيانات داخل الـ Attributes للبحث الذكي
           htmlContent += `
             <article class="card restaurant-card" data-name="${resName.toLowerCase()}" data-menu="${resMenu.toLowerCase()}">
               ${place.image ? `<img src="${place.image}" style="width:100%; border-radius:15px; margin-bottom:15px; max-height:220px; object-fit:cover;" />` : ''}
@@ -427,10 +432,10 @@
         
         placesList.innerHTML = htmlContent;
 
-        // تفعيل كود البحث الفوري بعد تحميل البطاقات مباشرة
+        // تشغيل نظام الفلترة والبحث
         initSearch();
 
-        // أحداث أزرار الحذف
+        // أزرار الحذف
         document.querySelectorAll('.delete-btn').forEach(btn => {
           btn.addEventListener('click', async (e) => {
             const idToDel = e.target.dataset.id;
@@ -460,23 +465,20 @@
       }
     }
 
-    // دالة منطق البحث والفلترة
+    // منطق البحث الفوري المحسن
     function initSearch() {
       searchInput.addEventListener('input', (e) => {
         const keyword = e.target.value.toLowerCase().trim();
         const cards = document.querySelectorAll('.restaurant-card');
         
         cards.forEach(card => {
-          const name = card.dataset.name;
-          const menu = card.dataset.menu;
+          const name = card.dataset.name || '';
+          const menu = card.dataset.menu || '';
           
-          // إذا كان الاسم أو قائمة الطعام يحتويان على الكلمة المفتاحية، تظهر البطاقة، وإلا تختفي
           if (name.includes(keyword) || menu.includes(keyword)) {
             card.style.display = 'block';
-            card.style.opacity = '1';
           } else {
             card.style.display = 'none';
-            card.style.opacity = '0';
           }
         });
       });
@@ -520,7 +522,7 @@
       });
     }
 
-    // إرسال الاستمارة
+    // إرسال البيانات
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -555,9 +557,11 @@
 
         setTimeout(() => {
           loadPlaces();
+          // العودة لصفحة العرض وإظهار خانة البحث مجدداً
+          document.getElementById('searchBox').style.display = 'block';
           document.querySelector('[data-tab="browse"]').click();
           message.style.display = 'none';
-          searchInput.value = ''; // تصفير حقل البحث بعد الإضافة الجديدة
+          searchInput.value = ''; 
         }, 2000);
 
       } catch (error) {
