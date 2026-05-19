@@ -250,7 +250,7 @@
         <label for="menu">قائمة الطعام والأسعار</label>
         <textarea id="menu" rows="4" placeholder="مثال:&#10;تاكوس - 200 دج&#10;برغر - 1200 دج"></textarea>
 
-        <label for="image">صورة المطعم</label>
+        <label for="image">صورة المطعم (سيتم ضغطها تلقائياً إذا كانت كبيرة)</label>
         <input type="file" id="image" accept="image/*" />
 
         <label for="phone">رقم الهاتف</label>
@@ -274,7 +274,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // إعدادات Firebase الخاصة بك
     const firebaseConfig = {
       apiKey: "AIzaSyBqKHMC6jltH56-vfcsTqZHh0KOVZaWuZY",
       authDomain: "fast-food-bechar.firebaseapp.com",
@@ -308,18 +307,15 @@
       return menu.split('\n').filter(line => line.trim()).map(line => `<li>${line}</li>`).join('');
     }
 
-    // دالة جلب وعرض البيانات بطريقة آمنة لتجنب مشاكل الفهرسة
+    // دالة جلب وعرض البيانات بطريقة آمنة
     async function loadPlaces() {
       try {
         let querySnapshot;
-        
         try {
-          // محاولة الجلب بالترتيب أولاً (تحتاج تفعيل الـ Index في لوحة التحكم لاحقاً)
           const q = query(collection(db, "restaurants"), orderBy("createdAt", "desc"));
           querySnapshot = await getDocs(q);
         } catch (idxError) {
-          console.warn("الفهرس لم يفعل بعد، سيتم جلب البيانات بدون ترتيب مؤقتاً.");
-          // حل بديل فوري: جلب البيانات العادية بدون ترتيب لتفادي توقف الموقع العام
+          console.warn("الفهرس لم يفعل بعد، سيتم جلب البيانات بدون ترتيب.");
           querySnapshot = await getDocs(collection(db, "restaurants"));
         }
         
@@ -331,8 +327,6 @@
         let htmlContent = '';
         querySnapshot.forEach((doc) => {
           const place = doc.data();
-          
-          // حماية إضافية للتحقق من وجود الحقول لتفادي قيم الـ undefined
           const resName = place.restaurantName || place.name || "مطعم غير مسمى";
           const resPhone = place.phoneNumber || place.phone || "---";
           const resGps = place.gpsLocation || place.gps || "---";
@@ -358,8 +352,48 @@
       }
     }
 
-    // استدعاء التحميل الفوري
     loadPlaces();
+
+    // دالة سحرية لضغط الصور وتصغير حجمها برمجياً قبل الرفع
+    function compressImage(file, maxWidth = 800, maxHeight = 600, quality = 0.7) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // الحفاظ على أبعاد الصورة ونسبها عند التصغير
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // تصدير الصورة بصيغة JPEG مضغوطة وخفيفة جداً
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve(compressedDataUrl);
+          };
+          img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+      });
+    }
 
     // إرسال البيانات من الاستمارة
     form.addEventListener('submit', async (e) => {
@@ -370,18 +404,15 @@
         let imageData = '';
         
         if (file) {
-          if (file.size > 1000000) {
-            message.classList.add('error-message');
-            message.style.display = 'block';
-            message.textContent = 'خطأ: حجم الصورة كبير جداً (أقصى حد 1MB)';
-            return;
-          }
-          imageData = await new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(file);
-          });
+          message.style.display = 'block';
+          message.className = 'message';
+          message.textContent = 'جاري معالجة وضغط الصورة...';
+          
+          // تشغيل دالة الضغط التلقائي للصورة مهما كان حجمها الأصلي كبير
+          imageData = await compressImage(file, 800, 600, 0.7);
         }
+
+        message.textContent = 'جاري رفع البيانات إلى السيرفر...';
 
         await addDoc(collection(db, "restaurants"), {
           restaurantName: document.getElementById('name').value,
@@ -394,7 +425,7 @@
         });
         
         message.classList.remove('error-message');
-        message.style.display = 'block';
+        message.classList.add('message');
         message.textContent = 'تمت إضافة المطعم بنجاح! 🎉';
         form.reset();
 
