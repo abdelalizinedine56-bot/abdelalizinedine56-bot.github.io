@@ -42,7 +42,7 @@
       margin: 24px auto 40px;
       padding: 0 16px;
       position: relative;
-      z-index: 20; /* يضمن ظهور المحتوى فوق الخلفية */
+      z-index: 20;
     }
     .tabs {
       display: flex;
@@ -50,7 +50,7 @@
       margin-bottom: 24px;
       border-bottom: 2px solid rgba(248, 250, 252, 0.1);
       position: relative;
-      z-index: 100; /* جعل التبويبات في الطبقة العليا لتستجيب للضغط دائماً */
+      z-index: 100;
     }
     .tab-button {
       flex: 1;
@@ -81,6 +81,35 @@
     .tab-content.active {
       display: block;
     }
+    
+    /* تصميم خانة البحث الجديدة */
+    .search-container {
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 16px;
+      border: 2px solid rgba(251, 191, 36, 0.3);
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+      text-align: right;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: #fbbf24;
+      box-shadow: 0 8px 30px rgba(251, 191, 36, 0.2);
+      background: rgba(30, 41, 59, 0.95);
+    }
+    .search-input::placeholder {
+      color: #94a3b8;
+    }
+
     form {
       background: rgba(15, 23, 42, 0.95);
       padding: 24px;
@@ -157,6 +186,7 @@
       border: 1px solid rgba(248, 250, 252, 0.1);
       text-align: right;
       position: relative;
+      transition: transform 0.3s ease, opacity 0.3s ease;
     }
     .card h2 {
       margin: 0 0 12px;
@@ -249,6 +279,10 @@
     </div>
 
     <div id="browse" class="tab-content active">
+      <div class="search-container">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 ابحث عن مطعم أو وجبة معينة (برغر، تاكوس...)..." />
+      </div>
+
       <section>
         <h2 style="text-align: right; margin-bottom: 20px;">قائمة المطاعم</h2>
         <div class="cards" id="placesList">
@@ -316,7 +350,7 @@
     const _p2 = "86839";
     const checkAuth = (input) => input === (_p1 + _p2);
 
-    // تبديل التبويبات المصلح تماماً
+    // تبديل التبويبات
     document.querySelectorAll('.tab-button').forEach(button => {
       button.addEventListener('click', (e) => {
         e.preventDefault();
@@ -343,13 +377,14 @@
     const form = document.getElementById('placeForm');
     const message = document.getElementById('message');
     const placesList = document.getElementById('placesList');
+    const searchInput = document.getElementById('searchInput');
 
     function formatMenu(menu) {
       if (!menu || menu.trim() === "") return '<li>لا توجد قائمة حالياً</li>';
       return menu.split('\n').filter(line => line.trim()).map(line => `<li>${line}</li>`).join('');
     }
 
-    // دالة عرض البيانات مع دعم أسماء الحقول المختلفة في Firestore
+    // دالة عرض البيانات
     async function loadPlaces() {
       try {
         let querySnapshot;
@@ -370,14 +405,14 @@
           const place = documentSnapshot.data();
           const docId = documentSnapshot.id;
           
-          // التحقق من الحقول بذكاء لدعم كل الصيغ المتواجدة في قاعدة بياناتك
           const resName = place.restaurantName || place.name || "مطعم غير مسمى";
           const resPhone = place.phoneNumber || place.phone || place["phone number"] || "---";
           const resGps = place.gpsLocation || place.gps || place["gps"] || "---";
           const resMenu = place.menuPrices || place.menu || "";
 
+          // إضافة كود الفلترة عبر كلاسات مخصصة وبيانات داخل الـ Attributes للبحث الذكي
           htmlContent += `
-            <article class="card">
+            <article class="card restaurant-card" data-name="${resName.toLowerCase()}" data-menu="${resMenu.toLowerCase()}">
               ${place.image ? `<img src="${place.image}" style="width:100%; border-radius:15px; margin-bottom:15px; max-height:220px; object-fit:cover;" />` : ''}
               <h2>${resName}</h2>
               <p>⭐ التقييم: ${place.rating || '5'} / 5</p>
@@ -391,6 +426,9 @@
         });
         
         placesList.innerHTML = htmlContent;
+
+        // تفعيل كود البحث الفوري بعد تحميل البطاقات مباشرة
+        initSearch();
 
         // أحداث أزرار الحذف
         document.querySelectorAll('.delete-btn').forEach(btn => {
@@ -420,6 +458,28 @@
         console.error(error);
         placesList.innerHTML = '<p style="text-align:center; width:100%; color:#fca5a5;">حدث خطأ أثناء الاتصال بقاعدة البيانات.</p>';
       }
+    }
+
+    // دالة منطق البحث والفلترة
+    function initSearch() {
+      searchInput.addEventListener('input', (e) => {
+        const keyword = e.target.value.toLowerCase().trim();
+        const cards = document.querySelectorAll('.restaurant-card');
+        
+        cards.forEach(card => {
+          const name = card.dataset.name;
+          const menu = card.dataset.menu;
+          
+          // إذا كان الاسم أو قائمة الطعام يحتويان على الكلمة المفتاحية، تظهر البطاقة، وإلا تختفي
+          if (name.includes(keyword) || menu.includes(keyword)) {
+            card.style.display = 'block';
+            card.style.opacity = '1';
+          } else {
+            card.style.display = 'none';
+            card.style.opacity = '0';
+          }
+        });
+      });
     }
 
     loadPlaces();
@@ -497,6 +557,7 @@
           loadPlaces();
           document.querySelector('[data-tab="browse"]').click();
           message.style.display = 'none';
+          searchInput.value = ''; // تصفير حقل البحث بعد الإضافة الجديدة
         }, 2000);
 
       } catch (error) {
