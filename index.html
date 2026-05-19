@@ -179,14 +179,14 @@
       background: linear-gradient(135deg, #dc2626, #991b1b);
       color: white;
       border: none;
-      padding: 8px 14px;
+      padding: 10px 18px;
       font-size: 14px;
       border-radius: 8px;
       cursor: pointer;
       margin-top: 15px;
-      width: auto;
-      float: left;
+      width: 100%; /* جعل الزر عريضاً وواضحاً أسفل البطاقة */
       transition: background 0.2s;
+      font-weight: bold;
     }
     .delete-btn:hover {
       background: linear-gradient(135deg, #ef4444, #b91c1c);
@@ -315,11 +315,11 @@
     const placesList = document.getElementById('placesList');
 
     function formatMenu(menu) {
-      if (!menu) return '<li>لا توجد قائمة حالياً</li>';
+      if (!menu || menu.trim() === "") return '<li>لا توجد قائمة حالياً</li>';
       return menu.split('\n').filter(line => line.trim()).map(line => `<li>${line}</li>`).join('');
     }
 
-    // دالة جلب وعرض البيانات بطريقة آمنة
+    // دالة جلب وعرض البيانات
     async function loadPlaces() {
       try {
         let querySnapshot;
@@ -339,11 +339,11 @@
         let htmlContent = '';
         querySnapshot.forEach((documentSnapshot) => {
           const place = documentSnapshot.data();
-          const docId = documentSnapshot.id; // الحصول على معرف المستند الفريد للحذف
+          const docId = documentSnapshot.id;
           
           const resName = place.restaurantName || place.name || "مطعم غير مسمى";
-          const resPhone = place.phoneNumber || place.phone || "---";
-          const resGps = place.gpsLocation || place.gps || "---";
+          const resPhone = place.phoneNumber || place.phone || place["phone number"] || "---";
+          const resGps = place.gpsLocation || place.gps || place["gps"] || "---";
           const resMenu = place.menuPrices || place.menu || "";
 
           htmlContent += `
@@ -356,14 +356,14 @@
               <p><strong>📞 الهاتف:</strong> ${resPhone}</p>
               <p><strong>📍 GPS:</strong> ${resGps}</p>
               <button class="delete-btn" data-id="${docId}">حذف المطعم 🗑️</button>
-              <div style="clear:both;"></div>
             </article>
           `;
         });
         
+        // 1. وضع الكود داخل الصفحة أولاً
         placesList.innerHTML = htmlContent;
 
-        // ربط أحداث الحذف بالأزرار المضافة حديثاً
+        // 2. تفعيل أحداث الحذف فوراً بعد التأكد من وجود الأزرار في الصفحة
         document.querySelectorAll('.delete-btn').forEach(btn => {
           btn.addEventListener('click', async (e) => {
             const idToDel = e.target.dataset.id;
@@ -374,7 +374,7 @@
                 try {
                   await deleteDoc(doc(db, "restaurants", idToDel));
                   alert("تم حذف المطعم بنجاح! 🗑️");
-                  loadPlaces(); // إعادة تحميل القائمة بعد الحذف
+                  loadPlaces(); // تحديث القائمة فوراً
                 } catch (err) {
                   alert("حدث خطأ أثناء الحذف: " + err.message);
                 }
@@ -391,6 +391,7 @@
       }
     }
 
+    // تشغيل جلب البيانات عند فتح الموقع لأول مرة
     loadPlaces();
 
     // دالة ضغط الصور تلقائياً
